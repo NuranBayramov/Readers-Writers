@@ -1,168 +1,213 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <time.h>
 
-#define NUM_FILES 3
-#define NUM_READERS 20
-#define NUM_WRITES 5
+#define NUM_REPLICAS 3
+#define NUM_READERS  20
+#define NUM_WRITES   5
 
-char files[NUM_FILES][100] = {"Initial", "Initial", "Initial"};
+// the three replica file names
+char *replica_files[] = {"replica_0.txt", "replica_1.txt", "replica_2.txt"};
 
-int readers_per_file[NUM_FILES] = {0, 0, 0};
-int total_readers = 0;
+// shared state
+int readers_per_replica[NUM_REPLICAS] = {0, 0, 0};
+int writer_active    = 0;
+int writers_waiting  = 0;
 
-int writer_active = 0;
-int waiting_writers = 0;
-
-pthread_mutex_t lock;
-pthread_cond_t reader_cond;
-pthread_cond_t writer_cond;
+// sync primitives
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  can_read = PTHREAD_COND_INITIALIZER;
 
 FILE *logfile;
 
-int choose_file() {
-    int min = 0;
-    for (int i = 1; i < NUM_FILES; i++) {
-        if (readers_per_file[i] < readers_per_file[min])
-            min = i;
-    }
-    return min;
-}
 
-void log_state(char *msg) {
-    fprintf(logfile, "%s\n", msg);
+// ── helpers ────────────────────────────────────────────────────
 
-    fprintf(logfile, "Readers per file: ");
-    for (int i = 0; i < NUM_FILES; i++)
-        fprintf(logfile, "[%d] ", readers_per_file[i]);
-    fprintf(logfile, "\n");
-
-    fprintf(logfile, "Writer active: %d\n", writer_active);
-
-    for (int i = 0; i < NUM_FILES; i++)
-        fprintf(logfile, "File%d: %s\n", i, files[i]);
-
-    fprintf(logfile, "\n");
+void write_log(const char *msg) {
+    // get a simple timestamp
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    fprintf(logfile, "[%02d:%02d:%02d] %s\n", t->tm_hour, t->tm_min, t->tm_sec, msg);
+    printf(          "[%02d:%02d:%02d] %s\n", t->tm_hour, t->tm_min, t->tm_sec, msg);
     fflush(logfile);
 }
 
-void *reader(void *arg) {
+void log_state() {
+    char buf[256];
+    snprintf(buf, sizeof(buf),
+        "[STATE] writer=%s | waiting=%d | r0=%d r1=%d r2=%d",
+        writer_active ? "ACTIVE" : "idle",
+        writers_waiting,
+        readers_per_replica[0],
+        readers_per_replica[1],
+        readers_per_replica[2]);
+    write_log(buf);
+}
+
+// pick the replica with fewest active readers
+int least_loaded() {
+    int best = 0;
+    for (int i = 1; i < NUM_REPLICAS; i++) {
+        if (readers_per_replica[i] < readers_per_replica[best])
+            best = i;
+    }
+    return best;
+}
+
+void init_replicas() {
+    for (int i = 0; i < NUM_REPLICAS; i++) {
+        FILE *f = fopen(replica_files[i], "w");
+        fprintf(f, "Hello, this is the initial file content.\n");
+        fclose(f);
+    }
+    write_log("[INIT] replica files created");
+}
+
+
+// ── reader ─────────────────────────────────────────────────────
+
+void *reader_thread(void *arg) {
     int id = *(int *)arg;
     free(arg);
 
-    pthread_mutex_lock(&lock);
+    char buf[256];
+    snprintf(buf, sizeof(buf), "[READER-%02d] spawned, waiting...", id);
+    write_log(buf);
 
-    while (writer_active || waiting_writers > 0) {
-        printf("Reader %d waiting (writer priority)\n", id);
-        pthread_cond_wait(&reader_cond, &lock);
+    // --- acquire ---
+    pthread_mutex_lock(&lock);
+    // block if a writer is waiting or active
+    while (writer_active || writers_waiting > 0) {
+        pthread_cond_wait(&can_read, &lock);
     }
-
-    int f = choose_file();
-    readers_per_file[f]++;
-    total_readers++;
-
-    char msg[100];
-    sprintf(msg, "Reader %d START reading file %d", id, f);
-    log_state(msg);
-
+    int replica = least_loaded();
+    readers_per_replica[replica]++;
     pthread_mutex_unlock(&lock);
 
-    usleep(700000);  // longer reading
+    // --- read ---
+    snprintf(buf, sizeof(buf), "[READER-%02d] reading replica_%d", id, replica);
+    write_log(buf);
 
+    // simulate read time
+    usleep((300 + rand() % 700) * 1000);
+
+    FILE *f = fopen(replica_files[replica], "r");
+    char line[128] = "";
+    if (f) { fgets(line, sizeof(line), f); fclose(f); }
+    // strip newline for cleaner log
+    line[strcspn(line, "\n")] = 0;
+
+    snprintf(buf, sizeof(buf), "[READER-%02d] done  replica_%d | content: \"%s\"", id, replica, line);
+    write_log(buf);
+
+    // --- release ---
     pthread_mutex_lock(&lock);
-
-    printf("Reader %d read from file %d: %s\n", id, f, files[f]);
-
-    readers_per_file[f]--;
-    total_readers--;
-
-    sprintf(msg, "Reader %d FINISH reading file %d", id, f);
-    log_state(msg);
-
-    if (total_readers == 0)
-        pthread_cond_signal(&writer_cond);
-
+    readers_per_replica[replica]--;
+    pthread_cond_broadcast(&can_read);  // wake writer / other readers
+    log_state();
     pthread_mutex_unlock(&lock);
+
     return NULL;
 }
 
-void *writer(void *arg) {
-    for (int w = 0; w < NUM_WRITES; w++) {
-        usleep(250000);  // writer tries earlier
 
+// ── writer ─────────────────────────────────────────────────────
+
+void *writer_thread(void *arg) {
+    (void)arg;
+
+    for (int v = 1; v <= NUM_WRITES; v++) {
+        // sleep a random amount between writes
+        int sleep_sec = 1 + rand() % 3;
+        char buf[256];
+        snprintf(buf, sizeof(buf), "[WRITER] sleeping %ds before write v%d", sleep_sec, v);
+        write_log(buf);
+        sleep(sleep_sec);
+
+        // --- acquire (writer priority) ---
         pthread_mutex_lock(&lock);
-
-        waiting_writers++;
-        printf("Writer wants to write\n");
-
-        while (total_readers > 0 || writer_active)
-            pthread_cond_wait(&writer_cond, &lock);
-
-        waiting_writers--;
+        writers_waiting++;  // signal intent — new readers will now block
+        // wait until no reader is active on any replica
+        while (readers_per_replica[0] > 0 ||
+               readers_per_replica[1] > 0 ||
+               readers_per_replica[2] > 0) {
+            pthread_cond_wait(&can_read, &lock);
+        }
+        writers_waiting--;
         writer_active = 1;
-
-        char newcontent[100];
-        sprintf(newcontent, "Version %d", w + 1);
-
-        for (int i = 0; i < NUM_FILES; i++)
-            sprintf(files[i], "%s", newcontent);
-
-        log_state("Writer START writing");
-
+        log_state();
         pthread_mutex_unlock(&lock);
 
-        usleep(500000);
+        // --- write all three replicas ---
+        snprintf(buf, sizeof(buf), "[WRITER] writing all replicas  (v%d)", v);
+        write_log(buf);
 
-        printf("Writer updated files to %s\n", newcontent);
+        time_t now = time(NULL);
+        struct tm *t = localtime(&now);
+        char new_content[128];
+        snprintf(new_content, sizeof(new_content),
+            "Writer update v%d at %02d:%02d:%02d\n", v, t->tm_hour, t->tm_min, t->tm_sec);
 
+        for (int i = 0; i < NUM_REPLICAS; i++) {
+            FILE *f = fopen(replica_files[i], "w");
+            fprintf(f, "%s", new_content);
+            fclose(f);
+            snprintf(buf, sizeof(buf), "[WRITER] replica_%d updated", i);
+            write_log(buf);
+        }
+
+        // simulate write duration
+        usleep((500 + rand() % 1000) * 1000);
+
+        // --- release ---
         pthread_mutex_lock(&lock);
-
         writer_active = 0;
-
-        log_state("Writer FINISH writing");
-
-        if (waiting_writers > 0)
-            pthread_cond_signal(&writer_cond);
-        else
-            pthread_cond_broadcast(&reader_cond);
-
+        pthread_cond_broadcast(&can_read);  // let blocked readers go
+        snprintf(buf, sizeof(buf), "[WRITER] released lock after v%d", v);
+        write_log(buf);
+        log_state();
         pthread_mutex_unlock(&lock);
     }
 
+    write_log("[WRITER] all writes done, exiting");
     return NULL;
 }
+
+
+// ── main ───────────────────────────────────────────────────────
 
 int main() {
     srand(time(NULL));
 
-    logfile = fopen("log.txt", "w");
+    logfile = fopen("system.log", "w");
+    if (!logfile) { perror("fopen log"); return 1; }
 
-    pthread_mutex_init(&lock, NULL);
-    pthread_cond_init(&reader_cond, NULL);
-    pthread_cond_init(&writer_cond, NULL);
+    write_log("=== Readers-Writers simulation start ===");
+    init_replicas();
 
-    pthread_t r[NUM_READERS];
-    pthread_t w;
+    // start writer
+    pthread_t writer;
+    pthread_create(&writer, NULL, writer_thread, NULL);
 
-    pthread_create(&w, NULL, writer, NULL);
-
+    // spawn readers at random intervals
+    pthread_t readers[NUM_READERS];
     for (int i = 0; i < NUM_READERS; i++) {
         int *id = malloc(sizeof(int));
         *id = i + 1;
-
-        usleep(150000);  // slower spawning so some readers arrive after writer intent
-        pthread_create(&r[i], NULL, reader, id);
+        pthread_create(&readers[i], NULL, reader_thread, id);
+        usleep((100 + rand() % 400) * 1000);  // 0.1 – 0.5 s between spawns
     }
 
+    // wait for everyone
     for (int i = 0; i < NUM_READERS; i++)
-        pthread_join(r[i], NULL);
+        pthread_join(readers[i], NULL);
+    pthread_join(writer, NULL);
 
-    pthread_join(w, NULL);
-
+    write_log("=== simulation complete ===");
     fclose(logfile);
-
-    printf("Finished. Check log.txt\n");
+    printf("Log saved to system.log\n");
     return 0;
 }

@@ -1,0 +1,124 @@
+[16:01:47] === Readers-Writers simulation start ===
+[16:01:47] [INIT] replica files created
+[16:01:47] [WRITER] sleeping 3s before write v1
+[16:01:47] [READER-01] spawned, waiting...
+[16:01:47] [READER-01] reading replica_0
+[16:01:48] [READER-01] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:48] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:48] [READER-02] spawned, waiting...
+[16:01:48] [READER-02] reading replica_0
+[16:01:48] [READER-02] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:48] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:48] [READER-03] spawned, waiting...
+[16:01:48] [READER-03] reading replica_0
+[16:01:49] [READER-03] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:49] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:49] [READER-04] spawned, waiting...
+[16:01:49] [READER-04] reading replica_0
+[16:01:49] [READER-04] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:49] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:49] [READER-05] spawned, waiting...
+[16:01:49] [READER-05] reading replica_0
+[16:01:49] [READER-06] spawned, waiting...
+[16:01:49] [READER-06] reading replica_1
+[16:01:49] [READER-05] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:49] [STATE] writer=idle | waiting=0 | r0=0 r1=1 r2=0
+[16:01:49] [READER-07] spawned, waiting...
+[16:01:49] [READER-07] reading replica_0
+[16:01:49] [READER-06] done  replica_1 | content: "Hello, this is the initial file content."
+[16:01:50] [STATE] writer=idle | waiting=0 | r0=1 r1=0 r2=0
+[16:01:50] [READER-08] spawned, waiting...
+[16:01:50] [READER-08] reading replica_1
+[16:01:50] [READER-07] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:50] [STATE] writer=idle | waiting=0 | r0=0 r1=1 r2=0
+[16:01:50] [READER-08] done  replica_1 | content: "Hello, this is the initial file content."
+[16:01:50] [READER-09] spawned, waiting...
+[16:01:50] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:50] [READER-09] reading replica_0
+[16:01:50] [READER-09] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:50] [READER-10] spawned, waiting...
+[16:01:50] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:50] [READER-10] reading replica_0
+[16:01:51] [READER-10] done  replica_0 | content: "Hello, this is the initial file content."
+[16:01:51] [STATE] writer=idle | waiting=1 | r0=0 r1=0 r2=0
+[16:01:51] [STATE] writer=ACTIVE | waiting=0 | r0=0 r1=0 r2=0
+[16:01:51] [WRITER] writing all replicas  (v1)
+[16:01:51] [WRITER] replica_0 updated
+[16:01:51] [WRITER] replica_1 updated
+[16:01:51] [WRITER] replica_2 updated
+[16:01:51] [READER-11] spawned, waiting...
+[16:01:51] [READER-12] spawned, waiting...
+[16:01:51] [READER-13] spawned, waiting...
+[16:01:51] [READER-14] spawned, waiting...
+[16:01:52] [WRITER] released lock after v1
+[16:01:52] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:52] [WRITER] sleeping 2s before write v2
+[16:01:52] [READER-13] reading replica_0
+[16:01:52] [READER-14] reading replica_1
+[16:01:52] [READER-11] reading replica_2
+[16:01:52] [READER-12] reading replica_0
+[16:01:52] [READER-15] spawned, waiting...
+[16:01:52] [READER-15] reading replica_1
+[16:01:52] [READER-13] done  replica_0 | content: "Writer update v1 at 16:01:51"
+[16:01:52] [READER-14] done  replica_1 | content: "Writer update v1 at 16:01:51"
+[16:01:52] [STATE] writer=idle | waiting=0 | r0=1 r1=2 r2=1
+[16:01:52] [READER-11] done  replica_2 | content: "Writer update v1 at 16:01:51"
+[16:01:52] [READER-12] done  replica_0 | content: "Writer update v1 at 16:01:51"
+[16:01:52] [STATE] writer=idle | waiting=0 | r0=1 r1=1 r2=1
+[16:01:52] [STATE] writer=idle | waiting=0 | r0=1 r1=1 r2=0
+[16:01:52] [STATE] writer=idle | waiting=0 | r0=0 r1=1 r2=0
+[16:01:52] [READER-15] done  replica_1 | content: "Writer update v1 at 16:01:51"
+[16:01:52] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:52] [READER-16] spawned, waiting...
+[16:01:52] [READER-16] reading replica_0
+[16:01:52] [READER-17] spawned, waiting...
+[16:01:52] [READER-17] reading replica_1
+[16:01:52] [READER-16] done  replica_0 | content: "Writer update v1 at 16:01:51"
+[16:01:52] [STATE] writer=idle | waiting=0 | r0=0 r1=1 r2=0
+[16:01:52] [READER-18] spawned, waiting...
+[16:01:52] [READER-18] reading replica_0
+[16:01:53] [READER-19] spawned, waiting...
+[16:01:53] [READER-19] reading replica_2
+[16:01:53] [READER-17] done  replica_1 | content: "Writer update v1 at 16:01:51"
+[16:01:53] [STATE] writer=idle | waiting=0 | r0=1 r1=0 r2=1
+[16:01:53] [READER-18] done  replica_0 | content: "Writer update v1 at 16:01:51"
+[16:01:53] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=1
+[16:01:53] [READER-19] done  replica_2 | content: "Writer update v1 at 16:01:51"
+[16:01:53] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:53] [READER-20] spawned, waiting...
+[16:01:53] [READER-20] reading replica_0
+[16:01:53] [READER-20] done  replica_0 | content: "Writer update v1 at 16:01:51"
+[16:01:53] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:54] [STATE] writer=ACTIVE | waiting=0 | r0=0 r1=0 r2=0
+[16:01:54] [WRITER] writing all replicas  (v2)
+[16:01:54] [WRITER] replica_0 updated
+[16:01:54] [WRITER] replica_1 updated
+[16:01:54] [WRITER] replica_2 updated
+[16:01:55] [WRITER] released lock after v2
+[16:01:55] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:55] [WRITER] sleeping 3s before write v3
+[16:01:58] [STATE] writer=ACTIVE | waiting=0 | r0=0 r1=0 r2=0
+[16:01:58] [WRITER] writing all replicas  (v3)
+[16:01:58] [WRITER] replica_0 updated
+[16:01:58] [WRITER] replica_1 updated
+[16:01:58] [WRITER] replica_2 updated
+[16:01:59] [WRITER] released lock after v3
+[16:01:59] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:01:59] [WRITER] sleeping 1s before write v4
+[16:02:00] [STATE] writer=ACTIVE | waiting=0 | r0=0 r1=0 r2=0
+[16:02:00] [WRITER] writing all replicas  (v4)
+[16:02:00] [WRITER] replica_0 updated
+[16:02:00] [WRITER] replica_1 updated
+[16:02:00] [WRITER] replica_2 updated
+[16:02:01] [WRITER] released lock after v4
+[16:02:01] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:02:01] [WRITER] sleeping 2s before write v5
+[16:02:03] [STATE] writer=ACTIVE | waiting=0 | r0=0 r1=0 r2=0
+[16:02:03] [WRITER] writing all replicas  (v5)
+[16:02:03] [WRITER] replica_0 updated
+[16:02:03] [WRITER] replica_1 updated
+[16:02:03] [WRITER] replica_2 updated
+[16:02:04] [WRITER] released lock after v5
+[16:02:04] [STATE] writer=idle | waiting=0 | r0=0 r1=0 r2=0
+[16:02:04] [WRITER] all writes done, exiting
+[16:02:04] === simulation complete ===
